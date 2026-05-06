@@ -8,22 +8,15 @@ import plotly.express as px
 # --- 앱 설정 및 레이아웃 ---
 st.set_page_config(page_title="LOTTO F-1 DASHBOARD", page_icon="📈", layout="wide")
 
-# CSS를 이용한 커스텀 디자인
 st.markdown("""
     <style>
-    /* 메인 컨테이너 디자인 */
     .stApp { background-color: #0b0e14; color: #e0e0e0; }
-    
-    /* 카드형 섹션 디자인 */
-    .reportview-container .main .block-container { padding-top: 2rem; }
     div[data-testid="stMetric"] {
         background-color: rgba(255, 255, 255, 0.05);
         border-radius: 15px;
         padding: 20px;
         border: 1px solid rgba(255, 255, 255, 0.1);
     }
-    
-    /* 로또 공 디자인 */
     .ball {
         display: inline-flex;
         align-items: center;
@@ -37,30 +30,37 @@ st.markdown("""
         color: white;
         box-shadow: 2px 2px 5px rgba(0,0,0,0.3);
     }
-    .b1 { background: radial-gradient(circle at 30% 30%, #fbc02d, #f57f17); } /* 1-10 */
-    .b2 { background: radial-gradient(circle at 30% 30%, #42a5f5, #1565c0); } /* 11-20 */
-    .b3 { background: radial-gradient(circle at 30% 30%, #ef5350, #b71c1c); } /* 21-30 */
-    .b4 { background: radial-gradient(circle at 30% 30%, #bdbdbd, #616161); } /* 31-40 */
-    .b5 { background: radial-gradient(circle at 30% 30%, #66bb6a, #1b5e20); } /* 41-45 */
+    .b1 { background: radial-gradient(circle at 30% 30%, #fbc02d, #f57f17); }
+    .b2 { background: radial-gradient(circle at 30% 30%, #42a5f5, #1565c0); }
+    .b3 { background: radial-gradient(circle at 30% 30%, #ef5350, #b71c1c); }
+    .b4 { background: radial-gradient(circle at 30% 30%, #bdbdbd, #616161); }
+    .b5 { background: radial-gradient(circle at 30% 30%, #66bb6a, #1b5e20); }
 
-    /* 버튼 디자인 */
     .stButton>button {
         background: linear-gradient(90deg, #FF4B4B 0%, #FF2E2E 100%);
         border: none;
         color: white;
         padding: 15px 32px;
-        text-align: center;
-        font-size: 18px;
+        font-size: 20px;
         font-weight: bold;
         border-radius: 12px;
         transition: all 0.3s;
         box-shadow: 0 4px 15px rgba(255, 75, 75, 0.3);
     }
     .stButton>button:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(255, 75, 75, 0.5); }
+    
+    /* 생성기 박스 강조 */
+    .generator-box {
+        background-color: rgba(255, 255, 255, 0.03);
+        padding: 30px;
+        border-radius: 20px;
+        border: 1px dashed rgba(255, 255, 255, 0.2);
+        margin-bottom: 30px;
+    }
     </style>
     """, unsafe_allow_html=True)
 
-# --- 사용자 데이터 (1000~1222회 기초 데이터) ---
+# --- 사용자 데이터 (동일하게 유지) ---
 BASE_DATA = {
     1: (26, 2, 4), 2: (19, 2, 4), 3: (37, 4, 6), 4: (22, 0, 2), 5: (23, 3, 4),
     6: (39, 5, 12), 7: (37, 5, 7), 8: (26, 3, 1), 9: (27, 4, 5), 10: (23, 2, 5),
@@ -78,7 +78,6 @@ def load_db():
     if os.path.exists(DB_FILE):
         with open(DB_FILE, "r", encoding="utf-8") as f: return json.load(f)
     return []
-
 if 'history' not in st.session_state: st.session_state.history = load_db()
 
 # --- 분석 데이터 생성 ---
@@ -92,67 +91,61 @@ for n in range(1, 46):
     t_count = b_count + p_count
     energy = (s2 * 1.5) + (s3 * 3.0)
     analysis.append({
-        "번호": n, "총출현": t_count, 
-        "연타에너지": energy, 
+        "번호": n, "총출현": t_count, "연타에너지": energy,
         "성향": "🔥 폭발형" if s3 > 8 else ("🏃 연속형" if s2 > 6 else "⚪ 일반"),
         "지난주": n in last_nums
     })
 df = pd.DataFrame(analysis)
 
-# --- 화면 구성 ---
+# --- [레이아웃 변경] 맨 위: 타이틀 및 요약 ---
 st.title("🛡️ LOTTO FORMULA-1 DASHBOARD")
-st.markdown("### 인공지능 기반 연타성 및 주기 분석 시스템")
-
-# [상단 요약 정보 카드]
 m1, m2, m3, m4 = st.columns(4)
-with m1: st.metric("최종 분석 회차", f"{last_drw}회")
-with m2: st.metric("최대 에너지 번호", f"{df.sort_values('연타에너지').iloc[-1]['번호']}번")
-with m3: st.metric("최다 출현 번호", f"{df.sort_values('총출현').iloc[-1]['번호']}번")
-with m4: st.metric("시스템 상태", "운영중", delta="Stable")
+m1.metric("최종 분석 회차", f"{last_drw}회")
+m2.metric("최대 에너지 번호", f"{df.sort_values('연타에너지').iloc[-1]['번호']}번")
+m3.metric("최다 출현 번호", f"{df.sort_values('총출현').iloc[-1]['번호']}번")
+m4.metric("시스템 상태", "Stable")
 
 st.markdown("---")
 
-col1, col2 = st.columns([2, 1])
-
-with col1:
-    st.subheader("📈 에너지 랭킹 Top 10")
-    top_10 = df.sort_values("연타에너지", ascending=False).head(10)
-    fig = px.bar(top_10, x='번호', y='연타에너지', color='연타에너지', 
-                 color_continuous_scale='Reds', template='plotly_dark')
-    fig.update_layout(plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)')
-    st.plotly_chart(fig, use_container_width=True)
-    
-    st.subheader("📋 전체 데이터 상세 리포트")
-    st.dataframe(df.sort_values("연타에너지", ascending=False), use_container_width=True, height=400)
-
-with col2:
-    st.subheader("🔮 스마트 번호 생성기")
-    with st.container():
-        st.markdown("<div style='background-color: rgba(255,255,255,0.05); padding: 20px; border-radius: 15px;'>", unsafe_allow_html=True)
-        if st.button("새로운 조합 생성"):
-            st.write("알고리즘 연산 완료:")
+# --- [레이아웃 변경] 맨 위쪽 중앙: 스마트 번호 생성기 ---
+st.markdown("### 🔮 스마트 번호 생성기")
+with st.container():
+    st.markdown('<div class="generator-box">', unsafe_allow_html=True)
+    col_a, col_b = st.columns([1, 2])
+    with col_a:
+        strategy = st.radio("알고리즘 전략", ["에너지 집중형", "균형잡힌 추출", "최근 흐름 중시"])
+    with col_b:
+        if st.button("🚀 지금 번호 추출하기"):
             for i in range(5):
-                # 연타 에너지 기반 가중치 추출
                 cand = list(range(1, 46))
                 weights = [ (a['연타에너지'] + 10) for a in analysis ]
                 res = sorted(random.choices(cand, weights=weights, k=6))
                 while len(set(res)) < 6: res = sorted(random.choices(cand, weights=weights, k=6))
                 
-                # 시각화 렌더링
                 ball_html = ""
                 for num in res:
                     cls = "b1" if num <= 10 else "b2" if num <= 20 else "b3" if num <= 30 else "b4" if num <= 40 else "b5"
                     ball_html += f'<div class="ball {cls}">{num}</div>'
-                st.markdown(f'<div style="display:flex; margin-bottom:10px;">{ball_html}</div>', unsafe_allow_html=True)
+                st.markdown(f'<div style="display:flex; margin-bottom:10px; align-items:center;"><b style="margin-right:20px;">SET {i+1}</b>{ball_html}</div>', unsafe_allow_html=True)
             st.balloons()
-        st.markdown("</div>", unsafe_allow_html=True)
+    st.markdown('</div>', unsafe_allow_html=True)
 
-# --- 하단 관리자 도구 ---
+# --- [레이아웃 변경] 하단: 상세 데이터 리포트 ---
 st.markdown("---")
-with st.expander("🛠️ 데이터베이스 수동 관리"):
-    st.info("토요일 당첨 번호 발표 후 아래 버튼을 통해 데이터를 갱신하세요.")
-    col_a, col_b = st.columns(2)
-    new_drw_no = col_a.number_input("회차 번호", value=last_drw+1)
-    new_nums_input = col_b.text_input("당첨 번호 입력 (쉼표로 구분)")
-    if st.button("데이터 동기화 및 엔진 재시작"):
-        st.toast("데이터를 저장하고 엔진을 재부팅합니다...")
+col1, col2 = st.columns([2, 1])
+with col1:
+    st.subheader("📋 전체 데이터 상세 리포트")
+    st.dataframe(df.sort_values("연타에너지", ascending=False), use_container_width=True, height=400)
+with col2:
+    st.subheader("📈 에너지 랭킹 Top 10")
+    top_10 = df.sort_values("연타에너지", ascending=False).head(10)
+    fig = px.bar(top_10, x='번호', y='연타에너지', color='연타에너지', color_continuous_scale='Reds', template='plotly_dark')
+    fig.update_layout(plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)', margin=dict(l=0, r=0, t=0, b=0), height=350)
+    st.plotly_chart(fig, use_container_width=True)
+
+# --- 관리 메뉴 ---
+with st.expander("🛠️ 데이터 관리"):
+    new_drw_no = st.number_input("회차", value=last_drw+1)
+    new_nums_input = st.text_input("당첨 번호 (쉼표 구분)")
+    if st.button("동기화"):
+        st.toast("저장 중...")
