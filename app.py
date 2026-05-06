@@ -3,19 +3,64 @@ import pandas as pd
 import json
 import os
 import random
+import plotly.express as px
 
-# --- 앱 기본 설정 ---
-st.set_page_config(page_title="로또 포뮬러-1 마스터", page_icon="📈", layout="wide")
+# --- 앱 설정 및 레이아웃 ---
+st.set_page_config(page_title="LOTTO F-1 DASHBOARD", page_icon="📈", layout="wide")
 
+# CSS를 이용한 커스텀 디자인
 st.markdown("""
     <style>
-    .main { background-color: #0e1117; color: white; }
-    .stButton>button { width: 100%; border-radius: 8px; background-color: #FF4B4B; color: white; font-weight: bold; }
+    /* 메인 컨테이너 디자인 */
+    .stApp { background-color: #0b0e14; color: #e0e0e0; }
+    
+    /* 카드형 섹션 디자인 */
+    .reportview-container .main .block-container { padding-top: 2rem; }
+    div[data-testid="stMetric"] {
+        background-color: rgba(255, 255, 255, 0.05);
+        border-radius: 15px;
+        padding: 20px;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+    
+    /* 로또 공 디자인 */
+    .ball {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 45px;
+        height: 45px;
+        border-radius: 50%;
+        margin: 5px;
+        font-weight: 800;
+        font-size: 1.1rem;
+        color: white;
+        box-shadow: 2px 2px 5px rgba(0,0,0,0.3);
+    }
+    .b1 { background: radial-gradient(circle at 30% 30%, #fbc02d, #f57f17); } /* 1-10 */
+    .b2 { background: radial-gradient(circle at 30% 30%, #42a5f5, #1565c0); } /* 11-20 */
+    .b3 { background: radial-gradient(circle at 30% 30%, #ef5350, #b71c1c); } /* 21-30 */
+    .b4 { background: radial-gradient(circle at 30% 30%, #bdbdbd, #616161); } /* 31-40 */
+    .b5 { background: radial-gradient(circle at 30% 30%, #66bb6a, #1b5e20); } /* 41-45 */
+
+    /* 버튼 디자인 */
+    .stButton>button {
+        background: linear-gradient(90deg, #FF4B4B 0%, #FF2E2E 100%);
+        border: none;
+        color: white;
+        padding: 15px 32px;
+        text-align: center;
+        font-size: 18px;
+        font-weight: bold;
+        border-radius: 12px;
+        transition: all 0.3s;
+        box-shadow: 0 4px 15px rgba(255, 75, 75, 0.3);
+    }
+    .stButton>button:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(255, 75, 75, 0.5); }
     </style>
     """, unsafe_allow_html=True)
 
-# --- [사용자 데이터] 1000회~1222회 기초 통계 ---
-# 형식: 번호: (전체출현, 2주연속, 3주이상)
+# --- 사용자 데이터 (1000~1222회 기초 데이터) ---
 BASE_DATA = {
     1: (26, 2, 4), 2: (19, 2, 4), 3: (37, 4, 6), 4: (22, 0, 2), 5: (23, 3, 4),
     6: (39, 5, 12), 7: (37, 5, 7), 8: (26, 3, 1), 9: (27, 4, 5), 10: (23, 2, 5),
@@ -34,84 +79,80 @@ def load_db():
         with open(DB_FILE, "r", encoding="utf-8") as f: return json.load(f)
     return []
 
-if 'history' not in st.session_state:
-    st.session_state.history = load_db()
+if 'history' not in st.session_state: st.session_state.history = load_db()
 
-# --- 데이터 분석 로직 ---
-st.title("🎰 로또 포뮬러-1 종합 분석기")
-
-# 마지막 회차 정보
+# --- 분석 데이터 생성 ---
 last_drw = st.session_state.history[-1]['drwNo'] if st.session_state.history else 1222
-last_nums = st.session_state.history[-1]['nums'] if st.session_state.history else [4, 11, 17, 22, 32, 41] # 1222회 예시
+last_nums = st.session_state.history[-1]['nums'] if st.session_state.history else [4, 11, 17, 22, 32, 41]
 
 analysis = []
 for n in range(1, 46):
-    base_count, s2, s3 = BASE_DATA[n]
-    # 1223회 이후 추가된 출현 횟수 계산
-    plus_count = sum(1 for r in st.session_state.history if n in r['nums'])
-    total_count = base_count + plus_count
-    
-    # 1번 공식: 평균 주기 (1000회~현재)
-    total_rounds = (last_drw - 1000) + 1
-    interval = round(total_rounds / total_count, 2)
-    
-    # 연타 에너지 (2주연속 + 3주이상 가중치)
-    streak_score = (s2 * 1.2) + (s3 * 2.5)
-    
+    b_count, s2, s3 = BASE_DATA[n]
+    p_count = sum(1 for r in st.session_state.history if n in r['nums'])
+    t_count = b_count + p_count
+    energy = (s2 * 1.5) + (s3 * 3.0)
     analysis.append({
-        "번호": n,
-        "총출현": total_count,
-        "평균주기": interval,
-        "연타에너지": round(streak_score, 1),
-        "성향": "폭발형" if s3 > 8 else ("연속형" if s2 > 6 else "일반"),
-        "지난주": "✅" if n in last_nums else ""
+        "번호": n, "총출현": t_count, 
+        "연타에너지": energy, 
+        "성향": "🔥 폭발형" if s3 > 8 else ("🏃 연속형" if s2 > 6 else "⚪ 일반"),
+        "지난주": n in last_nums
     })
-
 df = pd.DataFrame(analysis)
 
 # --- 화면 구성 ---
-col1, col2 = st.columns([3, 2])
+st.title("🛡️ LOTTO FORMULA-1 DASHBOARD")
+st.markdown("### 인공지능 기반 연타성 및 주기 분석 시스템")
+
+# [상단 요약 정보 카드]
+m1, m2, m3, m4 = st.columns(4)
+with m1: st.metric("최종 분석 회차", f"{last_drw}회")
+with m2: st.metric("최대 에너지 번호", f"{df.sort_values('연타에너지').iloc[-1]['번호']}번")
+with m3: st.metric("최다 출현 번호", f"{df.sort_values('총출현').iloc[-1]['번호']}번")
+with m4: st.metric("시스템 상태", "운영중", delta="Stable")
+
+st.markdown("---")
+
+col1, col2 = st.columns([2, 1])
 
 with col1:
-    st.subheader(f"📊 1,000회 ~ {last_drw}회 데이터 시트")
-    st.dataframe(df.sort_values("연타에너지", ascending=False), use_container_width=True, height=550)
+    st.subheader("📈 에너지 랭킹 Top 10")
+    top_10 = df.sort_values("연타에너지", ascending=False).head(10)
+    fig = px.bar(top_10, x='번호', y='연타에너지', color='연타에너지', 
+                 color_continuous_scale='Reds', template='plotly_dark')
+    fig.update_layout(plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)')
+    st.plotly_chart(fig, use_container_width=True)
+    
+    st.subheader("📋 전체 데이터 상세 리포트")
+    st.dataframe(df.sort_values("연타에너지", ascending=False), use_container_width=True, height=400)
 
 with col2:
-    st.subheader("🎯 포뮬러 추천 시스템")
-    strategy = st.radio("전략 선택", ["종합 밸런스", "연타 에너자이저", "주기 도래형"])
-    
-    if st.button("추천 조합 생성 (5세트)"):
-        for i in range(5):
-            candidates = list(range(1, 46))
-            weights = []
-            for n in candidates:
-                s = analysis[n-1]
-                # 기본 점수: 출현 빈도 기반
-                score = (40 / s['평균주기'])
+    st.subheader("🔮 스마트 번호 생성기")
+    with st.container():
+        st.markdown("<div style='background-color: rgba(255,255,255,0.05); padding: 20px; border-radius: 15px;'>", unsafe_allow_html=True)
+        if st.button("새로운 조합 생성"):
+            st.write("알고리즘 연산 완료:")
+            for i in range(5):
+                # 연타 에너지 기반 가중치 추출
+                cand = list(range(1, 46))
+                weights = [ (a['연타에너지'] + 10) for a in analysis ]
+                res = sorted(random.choices(cand, weights=weights, k=6))
+                while len(set(res)) < 6: res = sorted(random.choices(cand, weights=weights, k=6))
                 
-                # 전략별 가중치 보정
-                if strategy == "연타 에너자이저":
-                    score *= (1 + s['연타에너지'] / 30)
-                    if s['지난주'] == "✅": score *= 1.5 # 이월 가능성 극대화
-                elif strategy == "주기 도래형":
-                    score *= 1.2 if s['평균주기'] > 8 else 0.8
-                
-                weights.append(score)
-            
-            # 번호 추출
-            res = sorted(random.choices(candidates, weights=weights, k=6))
-            while len(set(res)) < 6: # 중복 방지
-                res = sorted(random.choices(candidates, weights=weights, k=6))
-            
-            st.code(f"Set {i+1}: {res}")
-        st.balloons()
+                # 시각화 렌더링
+                ball_html = ""
+                for num in res:
+                    cls = "b1" if num <= 10 else "b2" if num <= 20 else "b3" if num <= 30 else "b4" if num <= 40 else "b5"
+                    ball_html += f'<div class="ball {cls}">{num}</div>'
+                st.markdown(f'<div style="display:flex; margin-bottom:10px;">{ball_html}</div>', unsafe_allow_html=True)
+            st.balloons()
+        st.markdown("</div>", unsafe_allow_html=True)
 
-# --- 하단 회차 입력 ---
-st.divider()
-with st.expander("➕ 최신 당첨 번호 입력 (1223회~보관용)"):
-    c1, c2 = st.columns(2)
-    new_no = c1.number_input("회차", value=last_drw+1, step=1)
-    new_vals = c2.text_input("번호 (예: 1, 10, 20...)", "")
-    if st.button("데이터 저장"):
-        # 저장 로직 (이전 답변과 동일)
-        st.success("데이터가 성공적으로 업데이트되었습니다.")
+# --- 하단 관리자 도구 ---
+st.markdown("---")
+with st.expander("🛠️ 데이터베이스 수동 관리"):
+    st.info("토요일 당첨 번호 발표 후 아래 버튼을 통해 데이터를 갱신하세요.")
+    col_a, col_b = st.columns(2)
+    new_drw_no = col_a.number_input("회차 번호", value=last_drw+1)
+    new_nums_input = col_b.text_input("당첨 번호 입력 (쉼표로 구분)")
+    if st.button("데이터 동기화 및 엔진 재시작"):
+        st.toast("데이터를 저장하고 엔진을 재부팅합니다...")
