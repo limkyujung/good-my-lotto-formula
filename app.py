@@ -14,7 +14,7 @@ st.markdown("""
     .stButton>button { width: 100%; border-radius: 5px; height: 3em; background-color: #FF4B4B; color: white; }
     .stDataFrame { border: 1px solid #30363d; }
     </style>
-    """, unsafe_content_type=True)
+    """, unsafe_allow_html=True) # 'allow_html'
 
 # --- 데이터 관리 로직 ---
 DB_FILE = "lotto_db.json"
