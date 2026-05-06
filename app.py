@@ -49,18 +49,17 @@ st.markdown("""
     }
     .stButton>button:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(255, 75, 75, 0.5); }
     
-    /* 생성기 박스 강조 */
     .generator-box {
         background-color: rgba(255, 255, 255, 0.03);
         padding: 30px;
         border-radius: 20px;
         border: 1px dashed rgba(255, 255, 255, 0.2);
-        margin-bottom: 30px;
+        margin-bottom: 20px;
     }
     </style>
     """, unsafe_allow_html=True)
 
-# --- 사용자 데이터 (동일하게 유지) ---
+# --- 사용자 데이터 (1000~1222회 기초 데이터) ---
 BASE_DATA = {
     1: (26, 2, 4), 2: (19, 2, 4), 3: (37, 4, 6), 4: (22, 0, 2), 5: (23, 3, 4),
     6: (39, 5, 12), 7: (37, 5, 7), 8: (26, 3, 1), 9: (27, 4, 5), 10: (23, 2, 5),
@@ -97,17 +96,12 @@ for n in range(1, 46):
     })
 df = pd.DataFrame(analysis)
 
-# --- [레이아웃 변경] 맨 위: 타이틀 및 요약 ---
+# --- [상단] 타이틀 ---
 st.title("🛡️ LOTTO FORMULA-1 DASHBOARD")
-m1, m2, m3, m4 = st.columns(4)
-m1.metric("최종 분석 회차", f"{last_drw}회")
-m2.metric("최대 에너지 번호", f"{df.sort_values('연타에너지').iloc[-1]['번호']}번")
-m3.metric("최다 출현 번호", f"{df.sort_values('총출현').iloc[-1]['번호']}번")
-m4.metric("시스템 상태", "Stable")
-
+st.markdown("### 인공지능 기반 연타성 및 주기 분석 시스템")
 st.markdown("---")
 
-# --- [레이아웃 변경] 맨 위쪽 중앙: 스마트 번호 생성기 ---
+# --- [1순위] 스마트 번호 생성기 ---
 st.markdown("### 🔮 스마트 번호 생성기")
 with st.container():
     st.markdown('<div class="generator-box">', unsafe_allow_html=True)
@@ -130,8 +124,16 @@ with st.container():
             st.balloons()
     st.markdown('</div>', unsafe_allow_html=True)
 
-# --- [레이아웃 변경] 하단: 상세 데이터 리포트 ---
+# --- [2순위] 시스템 요약 메트릭 (생성기 밑으로 이동) ---
+m1, m2, m3, m4 = st.columns(4)
+m1.metric("최종 분석 회차", f"{last_drw}회")
+m2.metric("최대 에너지 번호", f"{df.sort_values('연타에너지').iloc[-1]['번호']}번")
+m3.metric("최다 출현 번호", f"{df.sort_values('총출현').iloc[-1]['번호']}번")
+m4.metric("시스템 상태", "Stable")
+
 st.markdown("---")
+
+# --- [3순위] 상세 데이터 리포트 및 차트 ---
 col1, col2 = st.columns([2, 1])
 with col1:
     st.subheader("📋 전체 데이터 상세 리포트")
@@ -143,7 +145,7 @@ with col2:
     fig.update_layout(plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)', margin=dict(l=0, r=0, t=0, b=0), height=350)
     st.plotly_chart(fig, use_container_width=True)
 
-# --- 관리 메뉴 ---
+# --- 하단 관리 메뉴 ---
 with st.expander("🛠️ 데이터 관리"):
     new_drw_no = st.number_input("회차", value=last_drw+1)
     new_nums_input = st.text_input("당첨 번호 (쉼표 구분)")
