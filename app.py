@@ -7,43 +7,21 @@ import random
 # --- 앱 설정 ---
 st.set_page_config(page_title="레오 로또 시스템", page_icon="🦁", layout="centered")
 
-# 모바일 최적화 및 글자색 보정 디자인
+# 디자인 설정 (글자색 밝게 유지)
 st.markdown("""
     <style>
-    /* 배경색은 유지하되 글자색을 아주 밝게(Pure White) 조정 */
-    .stApp { 
-        background-color: #0b111a; 
-        color: #ffffff !important; 
-    }
-    
-    /* 모든 텍스트 요소를 밝게 강제 설정 */
-    h1, h2, h3, h4, h5, h6, p, span, label {
-        color: #ffffff !important;
-        font-weight: 500;
-    }
-
-    /* 메트릭 카드 내부 글자색 및 배경 대비 강화 */
+    .stApp { background-color: #0b111a; color: #ffffff !important; }
+    h1, h2, h3, h4, h5, h6, p, span, label { color: #ffffff !important; }
     div[data-testid="stMetric"] {
         background-color: rgba(255, 255, 255, 0.1);
-        border-radius: 15px; 
-        padding: 12px; 
-        border: 1px solid rgba(255, 255, 255, 0.2);
+        border-radius: 15px; padding: 12px; border: 1px solid rgba(255, 255, 255, 0.2);
         text-align: center;
     }
-    div[data-testid="stMetricValue"] > div {
-        color: #FFD700 !important; /* 지표 숫자는 황금색으로 강조 */
-        font-weight: 800 !important;
-    }
-    div[data-testid="stMetricLabel"] > div {
-        color: #ffffff !important; /* 지표 이름은 화이트 */
-        font-size: 0.9rem !important;
-    }
-
-    /* 로또 번호 공 디자인 */
     .ball {
         display: inline-flex; align-items: center; justify-content: center;
         width: 38px; height: 38px; border-radius: 50%; margin: 3px;
         font-weight: 800; font-size: 0.95rem; color: white !important;
+        text-shadow: 1px 1px 2px rgba(0,0,0,0.5);
     }
     .b1 { background: radial-gradient(circle at 30% 30%, #fbc02d, #f57f17); }
     .b2 { background: radial-gradient(circle at 30% 30%, #42a5f5, #1565c0); }
@@ -51,22 +29,17 @@ st.markdown("""
     .b4 { background: radial-gradient(circle at 30% 30%, #bdbdbd, #616161); }
     .b5 { background: radial-gradient(circle at 30% 30%, #66bb6a, #1b5e20); }
 
-    /* 추출 버튼 디자인 */
     .stButton>button {
         width: 100%; border-radius: 15px; height: 60px;
         background: linear-gradient(90deg, #FFD700 0%, #FFA500 100%);
-        color: #000000 !important; /* 버튼 글자는 가독성을 위해 검정색 */
-        font-size: 1.25rem; font-weight: 900; border: none;
+        color: #000000 !important; font-size: 1.25rem; font-weight: 900; border: none;
     }
-    
-    /* 표(Table) 내부 글자색 조정 */
-    .stTable td, .stTable th {
-        color: #ffffff !important;
-    }
+    /* 멀티셀렉트/셀렉트박스 글자색 보정 */
+    .stMultiSelect div, .stSelectbox div { color: #000000 !important; }
     </style>
     """, unsafe_allow_html=True)
 
-# --- 사용자 제공 핵심 데이터셋 (1000~1222회) ---
+# --- 기초 데이터 (기존과 동일) ---
 BASE_STATS = {
     1: (26, 2, 4), 2: (19, 2, 4), 3: (37, 4, 6), 4: (22, 0, 2), 5: (23, 3, 4),
     6: (39, 5, 12), 7: (37, 5, 7), 8: (26, 3, 1), 9: (27, 4, 5), 10: (23, 2, 5),
@@ -96,7 +69,6 @@ for n in range(1, 46):
     t_count = b_count + p_count
     energy = round((s2 * 1.5) + (s3 * 3.0), 1)
     analysis.append({"번호": n, "총출현": t_count, "연타에너지": energy, "지난주": n in last_nums})
-
 df = pd.DataFrame(analysis)
 
 # --- [1] 상단 이미지 ---
@@ -105,33 +77,56 @@ if os.path.exists("leo_main.png"):
 else:
     st.markdown('<h1 style="text-align:center; color:#FFD700;">🦁 레오 로또 시스템</h1>', unsafe_allow_html=True)
 
-# --- [2] 번호 생성기 ---
-st.markdown("### 🔮 레오 행운 번호 추출")
-if st.button("🚀 지금 추출하기"):
+# --- [2] 번호 필터링 옵션 (추가된 기능) ---
+st.markdown("### ⚙️ 번호 필터 설정")
+col_f1, col_f2 = st.columns(2)
+
+with col_f1:
+    exclude_nums = st.multiselect("배제할 숫자 (1~5개)", range(1, 46), max_selections=5)
+
+with col_f2:
+    fixed_num = st.selectbox("고정할 숫자 (1개)", [None] + list(range(1, 46)))
+
+# --- [3] 번호 생성기 ---
+st.markdown("---")
+if st.button("🚀 레오 추천 조합 생성"):
     for i in range(5):
-        cand = list(range(1, 46))
-        weights = [ (a['총출현'] * 0.5 + a['연타에너지'] + 5) for a in analysis ]
-        res = sorted(random.choices(cand, weights=weights, k=6))
-        while len(set(res)) < 6: res = sorted(random.choices(cand, weights=weights, k=6))
+        # 전체 1~45번 중 배제할 숫자 제거
+        candidates = [n for n in range(1, 46) if n not in exclude_nums]
         
+        # 고정수가 있다면 후보군에서 제외 (나중에 합치기 위해)
+        if fixed_num and fixed_num in candidates:
+            candidates.remove(fixed_num)
+        
+        # 가중치 계산 (배제된 번호 제외)
+        weights = []
+        for n in candidates:
+            idx = n - 1
+            w = (analysis[idx]['총출현'] * 0.5 + analysis[idx]['연타에너지'] + 5)
+            weights.append(w)
+        
+        # 고정수를 제외한 나머지 번호 추출
+        needed_count = 5 if fixed_num else 6
+        res_others = random.choices(candidates, weights=weights, k=needed_count)
+        
+        # 중복 방지 로직
+        while len(set(res_others)) < needed_count:
+            res_others = random.choices(candidates, weights=weights, k=needed_count)
+            
+        # 고정수와 합쳐서 최종 6개 만들기
+        final_res = sorted(res_others + ([fixed_num] if fixed_num else []))
+        
+        # 공 모양 시각화
         ball_html = ""
-        for num in res:
+        for num in final_res:
             cls = "b1" if num <= 10 else "b2" if num <= 20 else "b3" if num <= 30 else "b4" if num <= 40 else "b5"
             ball_html += f'<div class="ball {cls}">{num}</div>'
         st.markdown(f'<div style="display:flex; justify-content:center; margin-bottom:12px;">{ball_html}</div>', unsafe_allow_html=True)
     st.balloons()
 
-# --- [3] 모바일 요약 지표 (대비 강화) ---
+# --- [4] 요약 지표 및 리포트 ---
 st.markdown("---")
 c1, c2 = st.columns(2)
 c1.metric("분석 회차", f"{last_drw}회")
 c2.metric("에너지 1위", f"{df.sort_values('연타에너지').iloc[-1]['번호']}번")
-c3, c4 = st.columns(2)
-c3.metric("최다 출현", f"{df.sort_values('총출현').iloc[-1]['번호']}번")
-c4.metric("시스템", "🦁 Active")
-
-# --- [4] 데이터 요약 리포트 ---
-st.markdown("---")
-st.subheader("📊 에너지 Top 5 리포트")
-top_5 = df.sort_values("연타에너지", ascending=False).head(5)
-st.table(top_5[['번호', '총출현', '연타에너지']])
+st.table(df.sort_values("연타에너지", ascending=False).head(5)[['번호', '총출현', '연타에너지']])
