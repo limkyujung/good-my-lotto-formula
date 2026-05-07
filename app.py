@@ -22,7 +22,6 @@ st.markdown("""
         width: 38px; height: 38px; border-radius: 50%; margin: 3px;
         font-weight: 800; font-size: 0.95rem; color: white !important;
         text-shadow: 1px 1px 2px rgba(0,0,0,0.5);
-        position: relative;
     }
     /* 공 색상별 그라데이션 */
     .b1 { background: radial-gradient(circle at 30% 30%, #fbc02d, #f57f17); }
@@ -32,13 +31,10 @@ st.markdown("""
     .b5 { background: radial-gradient(circle at 30% 30%, #66bb6a, #1b5e20); }
     .b-fixed { background: radial-gradient(circle at 30% 30%, #9c27b0, #6a1b9a); border: 2px solid #ffffff; } /* 보라색 고정수 */
 
-    /* 별표 표시 */
-    .star-mark::after {
-        content: '★';
-        position: absolute;
-        top: -12px;
-        font-size: 0.7rem;
-        color: #FFD700;
+    /* 블라인드된 별표 번호 스타일 */
+    .ball-blind {
+        font-size: 1.2rem !important;
+        color: #FFD700 !important; /* 별표는 노란색 */
     }
 
     .stButton>button {
@@ -115,21 +111,17 @@ if st.button("🚀 레오 조합 생성"):
         
         res_others = sorted(list(res_others))
         
-        # 반자동 추천수 지정 (추출된 번호 중 첫 번째 번호에 별표)
-        semi_auto_num = res_others[0]
-        
-        # 4. 시각화 (고정수가 있으면 맨 앞에 보라색으로 배치)
+        # 4. 시각화 (고정수만 표시, 나머지는 블라인드)
         ball_html = ""
         
-        # 고정수 먼저 추가
+        # 고정수 먼저 추가 (보라색 공, 숫자 표시)
         if fixed_num:
             ball_html += f'<div class="ball b-fixed">{fixed_num}</div>'
         
-        # 나머지 번호 추가
-        for idx, num in enumerate(res_others):
+        # 나머지 자동 번호 추가 (일반 색상 공, 별표 표시)
+        for num in res_others:
             cls = "b1" if num <= 10 else "b2" if num <= 20 else "b3" if num <= 30 else "b4" if num <= 40 else "b5"
-            star_class = "star-mark" if idx == 0 else "" # 첫 번째 추출 번호에 별표
-            ball_html += f'<div class="ball {cls} {star_class}">{num}</div>'
+            ball_html += f'<div class="ball {cls} ball-blind">★</div>'
             
         st.markdown(f'<div style="display:flex; justify-content:center; margin-bottom:12px;">{ball_html}</div>', unsafe_allow_html=True)
     st.balloons()
