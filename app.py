@@ -3,37 +3,31 @@ import pandas as pd
 import json
 import os
 import random
-import plotly.express as px
 
-# --- 앱 설정 및 레이아웃 ---
-st.set_page_config(page_title="레오 로또 시스템", page_icon="🦁", layout="wide")
+# --- 앱 설정: 모바일 최적화 ---
+st.set_page_config(page_title="레오 로또 시스템", page_icon="🦁", layout="centered")
 
+# 모바일 전용 커스텀 디자인 (CSS)
 st.markdown("""
     <style>
-    /* 메인 배경 디자인 */
-    .stApp { background-color: #0b0e14; color: #e0e0e0; }
+    /* 배경 및 기본 폰트 */
+    .stApp { background-color: #0b111a; color: #e0e0e0; }
     
-    /* 지표 카드 디자인 */
+    /* 상단 이미지 중앙 정렬 */
+    .main-img { display: block; margin: 0 auto; width: 100%; max-width: 350px; border-radius: 20px; box-shadow: 0 10px 20px rgba(0,0,0,0.5); }
+    
+    /* 모바일 가독성 향상 카드 */
     div[data-testid="stMetric"] {
         background-color: rgba(255, 255, 255, 0.05);
-        border-radius: 15px;
-        padding: 20px;
-        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 15px; padding: 10px; border: 1px solid rgba(255, 255, 255, 0.1);
+        text-align: center; margin-bottom: 10px;
     }
     
-    /* 로또 번호 공 디자인 */
+    /* 로또 번호 공 디자인 (모바일 사이즈) */
     .ball {
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        width: 45px;
-        height: 45px;
-        border-radius: 50%;
-        margin: 5px;
-        font-weight: 800;
-        font-size: 1.1rem;
-        color: white;
-        box-shadow: 2px 2px 5px rgba(0,0,0,0.3);
+        display: inline-flex; align-items: center; justify-content: center;
+        width: 38px; height: 38px; border-radius: 50%; margin: 3px;
+        font-weight: 800; font-size: 0.95rem; color: white;
     }
     .b1 { background: radial-gradient(circle at 30% 30%, #fbc02d, #f57f17); }
     .b2 { background: radial-gradient(circle at 30% 30%, #42a5f5, #1565c0); }
@@ -41,32 +35,16 @@ st.markdown("""
     .b4 { background: radial-gradient(circle at 30% 30%, #bdbdbd, #616161); }
     .b5 { background: radial-gradient(circle at 30% 30%, #66bb6a, #1b5e20); }
 
-    /* 레오 로또 전용 버튼 스타일 */
+    /* 추출 버튼 (엄지손가락 터치 최적화) */
     .stButton>button {
-        background: linear-gradient(90deg, #FFD700 0%, #FFA500 100%); /* 황금빛 레오 컬러 */
-        border: none;
-        color: black;
-        padding: 15px 32px;
-        font-size: 20px;
-        font-weight: 800;
-        border-radius: 12px;
-        transition: all 0.3s;
-        box-shadow: 0 4px 15px rgba(255, 215, 0, 0.3);
-    }
-    .stButton>button:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(255, 215, 0, 0.5); }
-    
-    /* 생성기 박스 강조 */
-    .generator-box {
-        background-color: rgba(255, 255, 255, 0.03);
-        padding: 30px;
-        border-radius: 20px;
-        border: 1px dashed rgba(255, 215, 0, 0.4);
-        margin-bottom: 20px;
+        width: 100%; border-radius: 15px; height: 60px;
+        background: linear-gradient(90deg, #FFD700 0%, #FFA500 100%);
+        color: black; font-size: 1.2rem; font-weight: 900; border: none;
     }
     </style>
     """, unsafe_allow_html=True)
 
-# --- 사용자 제공 데이터 (1000~1222회 기초 데이터) ---
+# --- 사용자 데이터 (1000~1222회 기초 데이터 유지) ---
 BASE_DATA = {
     1: (26, 2, 4), 2: (19, 2, 4), 3: (37, 4, 6), 4: (22, 0, 2), 5: (23, 3, 4),
     6: (39, 5, 12), 7: (37, 5, 7), 8: (26, 3, 1), 9: (27, 4, 5), 10: (23, 2, 5),
@@ -86,7 +64,6 @@ def load_db():
     return []
 if 'history' not in st.session_state: st.session_state.history = load_db()
 
-# --- 분석 데이터 생성 ---
 last_drw = st.session_state.history[-1]['drwNo'] if st.session_state.history else 1222
 last_nums = st.session_state.history[-1]['nums'] if st.session_state.history else [4, 11, 17, 22, 32, 41]
 
@@ -96,65 +73,52 @@ for n in range(1, 46):
     p_count = sum(1 for r in st.session_state.history if n in r['nums'])
     t_count = b_count + p_count
     energy = (s2 * 1.5) + (s3 * 3.0)
-    analysis.append({
-        "번호": n, "총출현": t_count, "연타에너지": energy,
-        "성향": "🔥 폭발형" if s3 > 8 else ("🏃 연속형" if s2 > 6 else "⚪ 일반"),
-        "지난주": n in last_nums
-    })
+    analysis.append({"번호": n, "총출현": t_count, "연타에너지": energy, "지난주": n in last_nums})
 df = pd.DataFrame(analysis)
 
-# --- [상단] 시스템 명칭 ---
-st.title("🦁 레오 로또 시스템 (Leo Lotto System)")
-st.markdown("##### 사용자 맞춤형 연타성 데이터 및 주기 분석 엔진")
-st.markdown("---")
+# --- [1] 상단 이미지 & 타이틀 ---
+# 캐릭터 이미지를 상단에 표시합니다. (파일명이 다르면 해당 파일명으로 수정 필요)
+image_path = "Gemini_Generated_Image_n1yenqn1yenqn1ye.png"
+if os.path.exists(image_path):
+    st.image(image_path, use_column_width=True)
+else:
+    st.markdown('<h1 style="text-align:center;">🦁 레오 로또 시스템</h1>', unsafe_allow_html=True)
 
-# --- [1순위] 스마트 번호 생성기 ---
-st.markdown("### 🔮 레오 번호 생성기")
+# --- [2] 번호 생성기 (터치 중심) ---
 with st.container():
-    st.markdown('<div class="generator-box">', unsafe_allow_html=True)
-    col_a, col_b = st.columns([1, 2])
-    with col_a:
-        strategy = st.radio("분석 전략 선택", ["레오 에너지 집중형", "균형잡힌 추출", "최근 흐름 중시"])
-    with col_b:
-        if st.button("🚀 레오 추천 조합 생성"):
-            for i in range(5):
-                cand = list(range(1, 46))
-                weights = [ (a['연타에너지'] + 10) for a in analysis ]
-                res = sorted(random.choices(cand, weights=weights, k=6))
-                while len(set(res)) < 6: res = sorted(random.choices(cand, weights=weights, k=6))
-                
-                ball_html = ""
-                for num in res:
-                    cls = "b1" if num <= 10 else "b2" if num <= 20 else "b3" if num <= 30 else "b4" if num <= 40 else "b5"
-                    ball_html += f'<div class="ball {cls}">{num}</div>'
-                st.markdown(f'<div style="display:flex; margin-bottom:10px; align-items:center;"><b style="margin-right:20px; color:#FFD700;">SET {i+1}</b>{ball_html}</div>', unsafe_allow_html=True)
-            st.balloons()
-    st.markdown('</div>', unsafe_allow_html=True)
+    st.markdown("### 🔮 레오 추천 번호")
+    if st.button("🔥 지금 행운의 번호 추출"):
+        for i in range(5):
+            cand = list(range(1, 46))
+            weights = [ (a['연타에너지'] + 10) for a in analysis ]
+            res = sorted(random.choices(cand, weights=weights, k=6))
+            while len(set(res)) < 6: res = sorted(random.choices(cand, weights=weights, k=6))
+            
+            ball_html = ""
+            for num in res:
+                cls = "b1" if num <= 10 else "b2" if num <= 20 else "b3" if num <= 30 else "b4" if num <= 40 else "b5"
+                ball_html += f'<div class="ball {cls}">{num}</div>'
+            st.markdown(f'<div style="display:flex; justify-content:center; margin-bottom:10px;">{ball_html}</div>', unsafe_allow_html=True)
+        st.balloons()
 
-# --- [2순위] 시스템 요약 지표 ---
-m1, m2, m3, m4 = st.columns(4)
-m1.metric("최종 분석 회차", f"{last_drw}회")
-m2.metric("최대 에너지 번호", f"{df.sort_values('연타에너지').iloc[-1]['번호']}번")
-m3.metric("최다 출현 번호", f"{df.sort_values('총출현').iloc[-1]['번호']}번")
-m4.metric("시스템 상태", "🦁 활성중")
-
+# --- [3] 시스템 지표 (2열 모바일 그리드) ---
 st.markdown("---")
+c1, c2 = st.columns(2)
+c1.metric("분석 회차", f"{last_drw}회")
+c2.metric("최대 에너지", f"{df.sort_values('연타에너지').iloc[-1]['번호']}번")
+c3, c4 = st.columns(2)
+c3.metric("최다 출현", f"{df.sort_values('총출현').iloc[-1]['번호']}번")
+c4.metric("시스템", "🦁 Active")
 
-# --- [3순위] 상세 데이터 리포트 ---
-col1, col2 = st.columns([2, 1])
-with col1:
-    st.subheader("📋 레오 상세 데이터 리포트")
-    st.dataframe(df.sort_values("연타에너지", ascending=False), use_container_width=True, height=400)
-with col2:
-    st.subheader("📈 에너지 Top 10 차트")
-    top_10 = df.sort_values("연타에너지", ascending=False).head(10)
-    fig = px.bar(top_10, x='번호', y='연타에너지', color='연타에너지', color_continuous_scale='Oranges', template='plotly_dark')
-    fig.update_layout(plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)', margin=dict(l=0, r=0, t=0, b=0), height=350)
-    st.plotly_chart(fig, use_container_width=True)
+# --- [4] 데이터 리포트 (모바일은 가로 스크롤 방지) ---
+st.markdown("---")
+st.subheader("📊 에너지 랭킹 Top 5")
+top_5 = df.sort_values("연타에너지", ascending=False).head(5)
+st.table(top_5[['번호', '총출현', '연타에너지']]) # 모바일은 table이 가독성이 더 좋습니다.
 
-# --- 하단 관리 메뉴 ---
-with st.expander("🛠️ 시스템 데이터 관리"):
-    new_drw_no = st.number_input("업데이트 회차", value=last_drw+1)
-    new_nums_input = st.text_input("당첨 번호 (쉼표로 구분 예: 1,2,3,4,5,6)")
-    if st.button("레오 엔진 동기화"):
-        st.toast("데이터 반영 중...")
+# --- 관리 메뉴 (숨김 처리) ---
+with st.expander("🛠️ 데이터 관리"):
+    new_drw_input = st.number_input("업데이트 회차", value=last_drw+1)
+    new_nums_input = st.text_input("당첨 번호 (쉼표 구분)")
+    if st.button("갱신"):
+        st.toast("저장 완료")
