@@ -7,7 +7,7 @@ import random
 # --- 앱 설정 ---
 st.set_page_config(page_title="레오 로또 시스템", page_icon="🦁", layout="centered")
 
-# 디자인 설정 (글자색 밝게 유지)
+# 디자인 설정
 st.markdown("""
     <style>
     .stApp { background-color: #0b111a; color: #ffffff !important; }
@@ -22,24 +22,36 @@ st.markdown("""
         width: 38px; height: 38px; border-radius: 50%; margin: 3px;
         font-weight: 800; font-size: 0.95rem; color: white !important;
         text-shadow: 1px 1px 2px rgba(0,0,0,0.5);
+        position: relative;
     }
+    /* 공 색상별 그라데이션 */
     .b1 { background: radial-gradient(circle at 30% 30%, #fbc02d, #f57f17); }
     .b2 { background: radial-gradient(circle at 30% 30%, #42a5f5, #1565c0); }
     .b3 { background: radial-gradient(circle at 30% 30%, #ef5350, #b71c1c); }
     .b4 { background: radial-gradient(circle at 30% 30%, #bdbdbd, #616161); }
     .b5 { background: radial-gradient(circle at 30% 30%, #66bb6a, #1b5e20); }
+    .b-fixed { background: radial-gradient(circle at 30% 30%, #9c27b0, #6a1b9a); border: 2px solid #ffffff; } /* 보라색 고정수 */
+
+    /* 별표 표시 */
+    .star-mark::after {
+        content: '★';
+        position: absolute;
+        top: -12px;
+        font-size: 0.7rem;
+        color: #FFD700;
+    }
 
     .stButton>button {
         width: 100%; border-radius: 15px; height: 60px;
         background: linear-gradient(90deg, #FFD700 0%, #FFA500 100%);
         color: #000000 !important; font-size: 1.25rem; font-weight: 900; border: none;
+        box-shadow: 0 4px 15px rgba(255, 215, 0, 0.3);
     }
-    /* 멀티셀렉트/셀렉트박스 글자색 보정 */
     .stMultiSelect div, .stSelectbox div { color: #000000 !important; }
     </style>
     """, unsafe_allow_html=True)
 
-# --- 기초 데이터 (기존과 동일) ---
+# --- 기초 데이터 ---
 BASE_STATS = {
     1: (26, 2, 4), 2: (19, 2, 4), 3: (37, 4, 6), 4: (22, 0, 2), 5: (23, 3, 4),
     6: (39, 5, 12), 7: (37, 5, 7), 8: (26, 3, 1), 9: (27, 4, 5), 10: (23, 2, 5),
@@ -60,15 +72,13 @@ def load_db():
 if 'history' not in st.session_state: st.session_state.history = load_db()
 
 last_drw = st.session_state.history[-1]['drwNo'] if st.session_state.history else 1222
-last_nums = st.session_state.history[-1]['nums'] if st.session_state.history else [4, 11, 17, 22, 32, 41]
-
 analysis = []
 for n in range(1, 46):
     b_count, s2, s3 = BASE_STATS[n]
     p_count = sum(1 for r in st.session_state.history if n in r['nums'])
     t_count = b_count + p_count
     energy = round((s2 * 1.5) + (s3 * 3.0), 1)
-    analysis.append({"번호": n, "총출현": t_count, "연타에너지": energy, "지난주": n in last_nums})
+    analysis.append({"번호": n, "총출현": t_count, "연타에너지": energy})
 df = pd.DataFrame(analysis)
 
 # --- [1] 상단 이미지 ---
@@ -77,56 +87,55 @@ if os.path.exists("leo_main.png"):
 else:
     st.markdown('<h1 style="text-align:center; color:#FFD700;">🦁 레오 로또 시스템</h1>', unsafe_allow_html=True)
 
-# --- [2] 번호 필터링 옵션 (추가된 기능) ---
+# --- [2] 번호 필터 설정 ---
 st.markdown("### ⚙️ 번호 필터 설정")
 col_f1, col_f2 = st.columns(2)
-
 with col_f1:
-    exclude_nums = st.multiselect("배제할 숫자 (1~5개)", range(1, 46), max_selections=5)
-
+    exclude_nums = st.multiselect("배제할 숫자 (최대 5개)", range(1, 46), max_selections=5)
 with col_f2:
-    fixed_num = st.selectbox("고정할 숫자 (1개)", [None] + list(range(1, 46)))
+    fixed_num = st.selectbox("필수 고정수 (1개)", [None] + list(range(1, 46)))
 
-# --- [3] 번호 생성기 ---
+# --- [3] 번호 생성 로직 ---
 st.markdown("---")
-if st.button("🚀 레오 추천 조합 생성"):
+if st.button("🚀 레오 조합 생성"):
     for i in range(5):
-        # 전체 1~45번 중 배제할 숫자 제거
+        # 1. 후보군 생성 (배제수 제거)
         candidates = [n for n in range(1, 46) if n not in exclude_nums]
-        
-        # 고정수가 있다면 후보군에서 제외 (나중에 합치기 위해)
         if fixed_num and fixed_num in candidates:
             candidates.remove(fixed_num)
         
-        # 가중치 계산 (배제된 번호 제외)
-        weights = []
-        for n in candidates:
-            idx = n - 1
-            w = (analysis[idx]['총출현'] * 0.5 + analysis[idx]['연타에너지'] + 5)
-            weights.append(w)
+        # 2. 가중치 설정
+        weights = [ (analysis[n-1]['총출현'] * 0.5 + analysis[n-1]['연타에너지'] + 5) for n in candidates ]
         
-        # 고정수를 제외한 나머지 번호 추출
-        needed_count = 5 if fixed_num else 6
-        res_others = random.choices(candidates, weights=weights, k=needed_count)
+        # 3. 번호 추출
+        needed = 5 if fixed_num else 6
+        res_others = random.choices(candidates, weights=weights, k=needed)
+        while len(set(res_others)) < needed:
+            res_others = random.choices(candidates, weights=weights, k=needed)
         
-        # 중복 방지 로직
-        while len(set(res_others)) < needed_count:
-            res_others = random.choices(candidates, weights=weights, k=needed_count)
-            
-        # 고정수와 합쳐서 최종 6개 만들기
-        final_res = sorted(res_others + ([fixed_num] if fixed_num else []))
+        res_others = sorted(list(res_others))
         
-        # 공 모양 시각화
+        # 반자동 추천수 지정 (추출된 번호 중 첫 번째 번호에 별표)
+        semi_auto_num = res_others[0]
+        
+        # 4. 시각화 (고정수가 있으면 맨 앞에 보라색으로 배치)
         ball_html = ""
-        for num in final_res:
+        
+        # 고정수 먼저 추가
+        if fixed_num:
+            ball_html += f'<div class="ball b-fixed">{fixed_num}</div>'
+        
+        # 나머지 번호 추가
+        for idx, num in enumerate(res_others):
             cls = "b1" if num <= 10 else "b2" if num <= 20 else "b3" if num <= 30 else "b4" if num <= 40 else "b5"
-            ball_html += f'<div class="ball {cls}">{num}</div>'
+            star_class = "star-mark" if idx == 0 else "" # 첫 번째 추출 번호에 별표
+            ball_html += f'<div class="ball {cls} {star_class}">{num}</div>'
+            
         st.markdown(f'<div style="display:flex; justify-content:center; margin-bottom:12px;">{ball_html}</div>', unsafe_allow_html=True)
     st.balloons()
 
-# --- [4] 요약 지표 및 리포트 ---
+# --- [4] 하단 지표 ---
 st.markdown("---")
 c1, c2 = st.columns(2)
 c1.metric("분석 회차", f"{last_drw}회")
-c2.metric("에너지 1위", f"{df.sort_values('연타에너지').iloc[-1]['번호']}번")
-st.table(df.sort_values("연타에너지", ascending=False).head(5)[['번호', '총출현', '연타에너지']])
+c2.metric("시스템", "🦁 Active")
