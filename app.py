@@ -23,31 +23,29 @@ st.markdown("""
         font-weight: 800; font-size: 0.95rem; color: white !important;
         text-shadow: 1px 1px 2px rgba(0,0,0,0.5);
     }
-    /* 공 색상별 그라데이션 */
     .b1 { background: radial-gradient(circle at 30% 30%, #fbc02d, #f57f17); }
     .b2 { background: radial-gradient(circle at 30% 30%, #42a5f5, #1565c0); }
     .b3 { background: radial-gradient(circle at 30% 30%, #ef5350, #b71c1c); }
     .b4 { background: radial-gradient(circle at 30% 30%, #bdbdbd, #616161); }
     .b5 { background: radial-gradient(circle at 30% 30%, #66bb6a, #1b5e20); }
-    .b-fixed { background: radial-gradient(circle at 30% 30%, #9c27b0, #6a1b9a); border: 2px solid #ffffff; } /* 보라색 고정수 */
+    .b-fixed { background: radial-gradient(circle at 30% 30%, #9c27b0, #6a1b9a); border: 2px solid #ffffff; }
 
-    /* 블라인드된 별표 번호 스타일 */
+    /* 블라인드 전용 별표 스타일 */
     .ball-blind {
         font-size: 1.2rem !important;
-        color: #FFD700 !important; /* 별표는 노란색 */
+        color: #FFD700 !important;
     }
 
     .stButton>button {
         width: 100%; border-radius: 15px; height: 60px;
         background: linear-gradient(90deg, #FFD700 0%, #FFA500 100%);
         color: #000000 !important; font-size: 1.25rem; font-weight: 900; border: none;
-        box-shadow: 0 4px 15px rgba(255, 215, 0, 0.3);
     }
     .stMultiSelect div, .stSelectbox div { color: #000000 !important; }
     </style>
     """, unsafe_allow_html=True)
 
-# --- 기초 데이터 ---
+# --- 기초 데이터 (사용자 제공 1000~1222회 데이터) ---
 BASE_STATS = {
     1: (26, 2, 4), 2: (19, 2, 4), 3: (37, 4, 6), 4: (22, 0, 2), 5: (23, 3, 4),
     6: (39, 5, 12), 7: (37, 5, 7), 8: (26, 3, 1), 9: (27, 4, 5), 10: (23, 2, 5),
@@ -95,33 +93,42 @@ with col_f2:
 st.markdown("---")
 if st.button("🚀 레오 조합 생성"):
     for i in range(5):
-        # 1. 후보군 생성 (배제수 제거)
         candidates = [n for n in range(1, 46) if n not in exclude_nums]
         if fixed_num and fixed_num in candidates:
             candidates.remove(fixed_num)
         
-        # 2. 가중치 설정
         weights = [ (analysis[n-1]['총출현'] * 0.5 + analysis[n-1]['연타에너지'] + 5) for n in candidates ]
         
-        # 3. 번호 추출
+        # 고정수 제외 필요한 개수 추출
         needed = 5 if fixed_num else 6
         res_others = random.choices(candidates, weights=weights, k=needed)
         while len(set(res_others)) < needed:
             res_others = random.choices(candidates, weights=weights, k=needed)
         
+        # 번호 정렬 (고정수 제외)
         res_others = sorted(list(res_others))
         
-        # 4. 시각화 (고정수만 표시, 나머지는 블라인드)
+        # 시각화 로직
         ball_html = ""
         
-        # 고정수 먼저 추가 (보라색 공, 숫자 표시)
+        # 1. 고정수 (항상 첫 번째 칸, 보라색)
         if fixed_num:
             ball_html += f'<div class="ball b-fixed">{fixed_num}</div>'
-        
-        # 나머지 자동 번호 추가 (일반 색상 공, 별표 표시)
-        for num in res_others:
-            cls = "b1" if num <= 10 else "b2" if num <= 20 else "b3" if num <= 30 else "b4" if num <= 40 else "b5"
-            ball_html += f'<div class="ball {cls} ball-blind">★</div>'
+            # 나머지 5개 중 첫 번째(전체에서 2번째)를 블라인드 처리
+            for idx, num in enumerate(res_others):
+                cls = "b1" if num <= 10 else "b2" if num <= 20 else "b3" if num <= 30 else "b4" if num <= 40 else "b5"
+                if idx == 0: # 고정수 바로 다음 칸
+                    ball_html += f'<div class="ball {cls} ball-blind">★</div>'
+                else:
+                    ball_html += f'<div class="ball {cls}">{num}</div>'
+        else:
+            # 고정수가 없을 경우 전체 추출된 6개 중 2번째를 블라인드 처리
+            for idx, num in enumerate(res_others):
+                cls = "b1" if num <= 10 else "b2" if num <= 20 else "b3" if num <= 30 else "b4" if num <= 40 else "b5"
+                if idx == 1: # 두 번째 칸
+                    ball_html += f'<div class="ball {cls} ball-blind">★</div>'
+                else:
+                    ball_html += f'<div class="ball {cls}">{num}</div>'
             
         st.markdown(f'<div style="display:flex; justify-content:center; margin-bottom:12px;">{ball_html}</div>', unsafe_allow_html=True)
     st.balloons()
