@@ -1,4 +1,12 @@
 import streamlit as st
+
+# 이 코드가 아이콘 이미지를 결정합니다 (웹 브라우저 탭 아이콘 등)
+st.set_page_config(
+    page_title="레오 로또 시스템",
+    page_icon="leo_main.png", # 사용자님의 사자 이미지 파일명
+    layout="centered"
+)
+import streamlit as st
 import pandas as pd
 import json
 import os
