@@ -45,7 +45,7 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
-# --- 기초 데이터 (사용자 제공 1000~1222회 데이터) ---
+# --- 기초 데이터 ---
 BASE_STATS = {
     1: (26, 2, 4), 2: (19, 2, 4), 3: (37, 4, 6), 4: (22, 0, 2), 5: (23, 3, 4),
     6: (39, 5, 12), 7: (37, 5, 7), 8: (26, 3, 1), 9: (27, 4, 5), 10: (23, 2, 5),
@@ -99,36 +99,36 @@ if st.button("🚀 레오 조합 생성"):
         
         weights = [ (analysis[n-1]['총출현'] * 0.5 + analysis[n-1]['연타에너지'] + 5) for n in candidates ]
         
-        # 고정수 제외 필요한 개수 추출
         needed = 5 if fixed_num else 6
         res_others = random.choices(candidates, weights=weights, k=needed)
         while len(set(res_others)) < needed:
             res_others = random.choices(candidates, weights=weights, k=needed)
         
-        # 번호 정렬 (고정수 제외)
         res_others = sorted(list(res_others))
         
         # 시각화 로직
         ball_html = ""
         
-        # 1. 고정수 (항상 첫 번째 칸, 보라색)
+        # 전체 6개 구성을 리스트로 먼저 만들기 (고정수 포함 정렬)
+        final_list = sorted(res_others + ([fixed_num] if fixed_num else []))
+        
+        # 고정수가 있으면 무조건 맨 앞으로 강제 이동 (사용자 요청)
         if fixed_num:
-            ball_html += f'<div class="ball b-fixed">{fixed_num}</div>'
-            # 나머지 5개 중 첫 번째(전체에서 2번째)를 블라인드 처리
-            for idx, num in enumerate(res_others):
+            final_list.remove(fixed_num)
+            final_list.insert(0, fixed_num)
+            
+        for idx, num in enumerate(final_list):
+            # 색상 클래스 결정
+            if fixed_num and idx == 0:
+                cls = "b-fixed"
+            else:
                 cls = "b1" if num <= 10 else "b2" if num <= 20 else "b3" if num <= 30 else "b4" if num <= 40 else "b5"
-                if idx == 0: # 고정수 바로 다음 칸
-                    ball_html += f'<div class="ball {cls} ball-blind">★</div>'
-                else:
-                    ball_html += f'<div class="ball {cls}">{num}</div>'
-        else:
-            # 고정수가 없을 경우 전체 추출된 6개 중 2번째를 블라인드 처리
-            for idx, num in enumerate(res_others):
-                cls = "b1" if num <= 10 else "b2" if num <= 20 else "b3" if num <= 30 else "b4" if num <= 40 else "b5"
-                if idx == 1: # 두 번째 칸
-                    ball_html += f'<div class="ball {cls} ball-blind">★</div>'
-                else:
-                    ball_html += f'<div class="ball {cls}">{num}</div>'
+            
+            # 네 번째 자리(인덱스 3) 블라인드 처리
+            if idx == 3:
+                ball_html += f'<div class="ball {cls} ball-blind">★</div>'
+            else:
+                ball_html += f'<div class="ball {cls}">{num}</div>'
             
         st.markdown(f'<div style="display:flex; justify-content:center; margin-bottom:12px;">{ball_html}</div>', unsafe_allow_html=True)
     st.balloons()
