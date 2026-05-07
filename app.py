@@ -10,40 +10,21 @@ st.set_page_config(page_title="레오 로또 시스템", page_icon="🦁", layou
 # 모바일 전용 커스텀 디자인 (CSS)
 st.markdown("""
     <style>
-    /* 배경 및 기본 폰트 */
     .stApp { background-color: #0b111a; color: #e0e0e0; }
-    
-    /* 상단 이미지 디자인 */
     .main-img { 
-        display: block; 
-        margin: 0 auto; 
-        width: 100%; 
-        border-radius: 20px; 
-        box-shadow: 0 8px 16px rgba(0,0,0,0.4);
+        display: block; margin: 0 auto; width: 100%; 
+        border-radius: 20px; box-shadow: 0 8px 16px rgba(0,0,0,0.4);
         margin-bottom: 20px;
     }
-    
-    /* 카드형 메트릭 디자인 */
     div[data-testid="stMetric"] {
         background-color: rgba(255, 255, 255, 0.05);
-        border-radius: 15px; 
-        padding: 12px; 
-        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 15px; padding: 12px; border: 1px solid rgba(255, 255, 255, 0.1);
         text-align: center;
     }
-    
-    /* 로또 번호 공 디자인 (모바일 사이즈 최적화) */
     .ball {
-        display: inline-flex; 
-        align-items: center; 
-        justify-content: center;
-        width: 38px; 
-        height: 38px; 
-        border-radius: 50%; 
-        margin: 3px;
-        font-weight: 800; 
-        font-size: 0.95rem; 
-        color: white;
+        display: inline-flex; align-items: center; justify-content: center;
+        width: 38px; height: 38px; border-radius: 50%; margin: 3px;
+        font-weight: 800; font-size: 0.95rem; color: white;
         text-shadow: 1px 1px 2px rgba(0,0,0,0.5);
     }
     .b1 { background: radial-gradient(circle at 30% 30%, #fbc02d, #f57f17); }
@@ -52,16 +33,10 @@ st.markdown("""
     .b4 { background: radial-gradient(circle at 30% 30%, #bdbdbd, #616161); }
     .b5 { background: radial-gradient(circle at 30% 30%, #66bb6a, #1b5e20); }
 
-    /* 추출 버튼 (스마트폰 터치 중심) */
     .stButton>button {
-        width: 100%; 
-        border-radius: 15px; 
-        height: 60px;
+        width: 100%; border-radius: 15px; height: 60px;
         background: linear-gradient(90deg, #FFD700 0%, #FFA500 100%);
-        color: black; 
-        font-size: 1.25rem; 
-        font-weight: 900; 
-        border: none;
+        color: black; font-size: 1.25rem; font-weight: 900; border: none;
         box-shadow: 0 4px 15px rgba(255, 215, 0, 0.3);
     }
     </style>
@@ -99,7 +74,42 @@ for n in range(1, 46):
     analysis.append({"번호": n, "총출현": t_count, "연타에너지": energy})
 df = pd.DataFrame(analysis)
 
-# --- [1] 상단 캐릭터 이미지 표시 ---
-# 파일 이름이 leo_main.png 인지 확인하세요.
+# --- [1] 상단 이미지 (수정된 부분) ---
 if os.path.exists("leo_main.png"):
-    st.image("leo_main.png", use_column_
+    st.image("leo_main.png", use_container_width=True)
+else:
+    st.markdown('<h1 style="text-align:center; color:#FFD700;">🦁 레오 로또 시스템</h1>', unsafe_allow_html=True)
+
+# --- [2] 번호 생성기 ---
+st.markdown("### 🔮 레오 추천 번호")
+if st.button("🚀 지금 행운의 번호 추출"):
+    for i in range(5):
+        cand = list(range(1, 46))
+        weights = [ (a['연타에너지'] + 10) for a in analysis ]
+        res = sorted(random.choices(cand, weights=weights, k=6))
+        while len(set(res)) < 6: res = sorted(random.choices(cand, weights=weights, k=6))
+        
+        ball_html = ""
+        for num in res:
+            cls = "b1" if num <= 10 else "b2" if num <= 20 else "b3" if num <= 30 else "b4" if num <= 40 else "b5"
+            ball_html += f'<div class="ball {cls}">{num}</div>'
+        st.markdown(f'<div style="display:flex; justify-content:center; margin-bottom:12px;">{ball_html}</div>', unsafe_allow_html=True)
+    st.balloons()
+
+# --- [3] 시스템 요약 지표 ---
+st.markdown("---")
+c1, c2 = st.columns(2)
+c1.metric("분석 회차", f"{last_drw}회")
+c2.metric("최대 에너지", f"{df.sort_values('연타에너지').iloc[-1]['번호']}번")
+c3, c4 = st.columns(2)
+c3.metric("최다 출현", f"{df.sort_values('총출현').iloc[-1]['번호']}번")
+c4.metric("시스템", "🦁 Active")
+
+# --- [4] 데이터 리포트 ---
+st.markdown("---")
+st.subheader("📊 에너지 랭킹 Top 5")
+top_5 = df.sort_values("연타에너지", ascending=False).head(5)
+st.table(top_5[['번호', '총출현', '연타에너지']])
+
+with st.expander("🛠️ 엔진 관리"):
+    st.write("데이터 갱신용 메뉴")
